@@ -54,21 +54,30 @@ CUSTOM_CSS = f"""
         opacity: 0.9;
         font-size: 0.95rem;
     }}
-    .interp-box {{
+    .interp-box, .interp-box * {{
         background: #e8f4fd;
+        color: #0b2545 !important;
+    }}
+    .interp-box {{
         padding: 14px 16px;
         border-radius: 8px;
         border-left: 4px solid #003366;
         margin: 8px 0;
     }}
-    .formula-box {{
+    .formula-box, .formula-box * {{
         background: #fff3cd;
+        color: #4a3b00 !important;
+    }}
+    .formula-box {{
         padding: 16px;
         border-radius: 8px;
         border: 1px solid #ffc107;
     }}
-    .conclusion-box {{
+    .conclusion-box, .conclusion-box * {{
         background: #d4edda;
+        color: #14432a !important;
+    }}
+    .conclusion-box {{
         padding: 14px 16px;
         border-radius: 8px;
         border-left: 4px solid #28a745;
