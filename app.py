@@ -89,6 +89,15 @@ CUSTOM_CSS = f"""
         border-radius: 10px;
         padding: 10px 14px;
     }}
+    div[data-testid="stMetric"] * {{
+        color: #1a1a1a !important;
+    }}
+    div[data-testid="stMetricLabel"] {{
+        color: #4a4a4a !important;
+    }}
+    div[data-testid="stMetricValue"] {{
+        color: #003366 !important;
+    }}
 </style>
 """
 st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
