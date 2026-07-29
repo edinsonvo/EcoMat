@@ -527,14 +527,14 @@ with tab_modelo:
     st.markdown(
         """
         <div class="formula-box">
-        $$\\ln(w_i) = \\beta_0 + \\beta_1 E_i + \\beta_2 X_i + \\beta_3 X_i^2 + \\varepsilon_i$$
-        Donde: w = salario/hora · E = años de educación · X = experiencia potencial<br>
-        Estimado por <b>Mínimos Cuadrados Ordinarios (MCO)</b> con errores estándar robustos
-        a heterocedasticidad (HC3).
+        Especificación semi-logarítmica de Mincer, estimada por <b>Mínimos Cuadrados
+        Ordinarios (MCO)</b> con errores estándar robustos a heterocedasticidad (HC3).
         </div>
         """,
         unsafe_allow_html=True,
     )
+    st.latex(r"\ln(w_i) = \beta_0 + \beta_1 E_i + \beta_2 X_i + \beta_3 X_i^2 + \varepsilon_i")
+    st.caption("w = salario/hora · E = años de educación · X = experiencia potencial")
 
     col_izq, col_der = st.columns([1, 1.4])
     with col_izq:
@@ -600,16 +600,17 @@ with tab_modelo:
 # ────────────────────────────────────────────────────────────────────────
 with tab_pico:
     st.markdown(
-        r"""
+        """
         <div class="formula-box">
-        Condición de primer orden: $$\frac{\partial \ln(w)}{\partial X} = \beta_2 + 2\beta_3 X = 0$$
-        Despejando: $$X^{*} = -\frac{\beta_2}{2\beta_3}$$
-        La segunda derivada $2\beta_3 < 0$ confirma que se trata de un <b>máximo</b>
-        (función cóncava en experiencia).
+        La condición de primer orden identifica el punto donde el crecimiento salarial
+        respecto a la experiencia se detiene (máximo de la curva de Mincer).
         </div>
         """,
         unsafe_allow_html=True,
     )
+    st.latex(r"\frac{\partial \ln(w)}{\partial X} = \beta_2 + 2\beta_3 X = 0 \;\;\Rightarrow\;\; X^{*} = -\frac{\beta_2}{2\beta_3}")
+    st.caption("La segunda derivada 2β₃ < 0 confirma que se trata de un máximo "
+               "(función cóncava en la experiencia).")
 
     b = modelo.params
     b2, b3 = b.get("experiencia", np.nan), b.get("experiencia2", np.nan)
