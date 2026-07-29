@@ -246,7 +246,7 @@ def preparar_datos_mincer(df_raw, usar_reales, col_salario=None, col_horas=None,
         df["salario_hora"] = df["P6500"]
         df["educacion"] = df["_EDUCACION"]
         df["edad"] = df["P6040"]
-        df["sexo"] = df["P6020"]
+        df["sexo"] = df["P3271"]
 
     df["ln_salario"] = np.log(df["salario_hora"])
     df["experiencia"] = np.maximum(0, df["edad"] - df["educacion"] - 6)
@@ -387,8 +387,8 @@ with st.sidebar:
                                          index=_idx("P3042", cols))
                 col_edad = st.selectbox("Edad (ej. P6040)", cols,
                                          index=_idx("P6040", cols))
-                col_sexo = st.selectbox("Sexo (ej. P6020: 1=Hombre, 2=Mujer)", cols,
-                                         index=_idx("P6020", cols))
+                col_sexo = st.selectbox("Sexo (ej. P3271: 1=Hombre, 2=Mujer)", cols,
+                                         index=_idx("P3271", cols))
 
                 df, n_eliminados = preparar_datos_mincer(
                     df_merged, usar_reales=True, col_salario=col_salario, col_horas=col_horas,
