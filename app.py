@@ -173,17 +173,54 @@ def generar_datos_sinteticos(n=8000, semilla=2024, beta_educ=0.095, beta_exp=0.0
     return df
 
 
-@st.cache_data(show_spinner=False)
-def cargar_datos_reales(bytes_ocupados, bytes_caracteristicas, llaves):
-    """Carga y combina (left-join) los módulos GEIH: Ocupados + Características."""
+def _leer_csv_geih(bytes_archivo):
+    """Lee un CSV de la GEIH de forma tolerante a separador y codificación,
+    y normaliza los nombres de columnas (sin espacios ni BOM)."""
     import io
-    df_ocup = pd.read_csv(io.BytesIO(bytes_ocupados), encoding="latin1", low_memory=False)
-    df_carac = pd.read_csv(io.BytesIO(bytes_caracteristicas), encoding="latin1", low_memory=False)
 
+    tiene_bom = bytes_archivo[:3] == b"\xef\xbb\xbf"
+    intentos = [
+        dict(encoding="utf-8-sig", sep=None, engine="python"),
+        dict(encoding="latin1", sep=None, engine="python"),
+        dict(encoding="latin1", sep=";"),
+        dict(encoding="latin1", sep=","),
+    ]
+    if not tiene_bom:
+        # Si no hay BOM, priorizamos latin1 (codificación típica de los CSV del DANE)
+        intentos[0], intentos[1] = intentos[1], intentos[0]
+
+    ultimo_error = None
+    for kwargs in intentos:
+        try:
+            df = pd.read_csv(io.BytesIO(bytes_archivo), low_memory=False, **kwargs)
+            if df.shape[1] > 1:
+                df.columns = [
+                    str(c).strip().upper().replace("\ufeff", "").lstrip("Ï»¿")
+                    for c in df.columns
+                ]
+                return df
+        except Exception as e:
+            ultimo_error = e
+            continue
+    raise ValueError(f"No fue posible leer el archivo CSV. Detalle: {ultimo_error}")
+
+
+@st.cache_data(show_spinner=False)
+def leer_archivos_geih(bytes_ocupados, bytes_caracteristicas):
+    """Lee ambos módulos GEIH y devuelve los DataFrames crudos (sin combinar)."""
+    df_ocup = _leer_csv_geih(bytes_ocupados)
+    df_carac = _leer_csv_geih(bytes_caracteristicas)
+    return df_ocup, df_carac
+
+
+def combinar_geih(df_ocup, df_carac, llaves):
+    """Combina (left-join) los módulos Ocupados + Características por las llaves indicadas."""
     llaves_validas = [k for k in llaves if k in df_ocup.columns and k in df_carac.columns]
     if not llaves_validas:
-        raise ValueError("Ninguna de las llaves de merge está presente en ambos archivos.")
-
+        raise ValueError(
+            "Ninguna de las llaves seleccionadas está presente en ambos archivos. "
+            "Revisa los nombres de columnas disponibles más abajo y elige llaves comunes."
+        )
     df_merged = pd.merge(df_ocup, df_carac, on=llaves_validas, how="left",
                           suffixes=("_ocup", "_carac"))
     return df_merged, llaves_validas
@@ -289,36 +326,78 @@ with st.sidebar:
                    "seguridad social en salud y educación** del mismo mes de la GEIH.")
         f_ocup = st.file_uploader("CSV — Ocupados", type=["csv"])
         f_carac = st.file_uploader("CSV — Características generales", type=["csv"])
-        llaves_default = ["DIRECTORIO", "SECUENCIA_P", "HOGAR", "ORDEN"]
-        llaves_txt = st.text_input("Llaves de merge (separadas por coma)",
-                                    value=",".join(llaves_default))
-        llaves = [k.strip() for k in llaves_txt.split(",") if k.strip()]
 
         if f_ocup is not None and f_carac is not None:
             try:
-                df_merged, llaves_usadas = cargar_datos_reales(
-                    f_ocup.getvalue(), f_carac.getvalue(), llaves
+                df_ocup_raw, df_carac_raw = leer_archivos_geih(f_ocup.getvalue(), f_carac.getvalue())
+            except Exception as e:
+                st.error(f"Error al leer los archivos: {e}")
+                st.stop()
+
+            cols_ocup = set(df_ocup_raw.columns)
+            cols_carac = set(df_carac_raw.columns)
+            comunes = sorted(cols_ocup & cols_carac)
+            llaves_default = [k for k in ["DIRECTORIO", "SECUENCIA_P", "SECUENCIA_ENCUESTA",
+                                           "HOGAR", "ORDEN"] if k in comunes]
+
+            with st.expander(f"🔎 Columnas detectadas — Ocupados ({len(cols_ocup)}) / "
+                              f"Características ({len(cols_carac)})"):
+                cc1, cc2 = st.columns(2)
+                cc1.caption("Ocupados")
+                cc1.code("\n".join(sorted(cols_ocup)), language=None)
+                cc2.caption("Características")
+                cc2.code("\n".join(sorted(cols_carac)), language=None)
+
+            if not comunes:
+                st.error(
+                    "Los dos archivos no comparten ninguna columna con el mismo nombre, por lo "
+                    "que no se puede hacer el merge automático. Revisa en el panel de arriba los "
+                    "nombres exactos de columnas de cada archivo (por ejemplo, en algunos meses de "
+                    "la GEIH la llave de persona se llama `SECUENCIA_P` y en otros `SECUENCIA_ENCUESTA`), "
+                    "y verifica que ambos CSV correspondan al mismo mes/año de la encuesta."
                 )
+                st.stop()
+
+            llaves = st.multiselect(
+                "Llaves de merge (columnas presentes en ambos archivos)",
+                options=comunes,
+                default=llaves_default if llaves_default else comunes[:1],
+                help="Identifican de forma única cada hogar/persona para combinar los dos módulos.",
+            )
+            if not llaves:
+                st.warning("Selecciona al menos una llave de merge para continuar.")
+                st.stop()
+
+            try:
+                df_merged, llaves_usadas = combinar_geih(df_ocup_raw, df_carac_raw, llaves)
                 st.success(f"Merge exitoso ({', '.join(llaves_usadas)}): "
                            f"{df_merged.shape[0]:,} filas × {df_merged.shape[1]} columnas")
 
                 cols = list(df_merged.columns)
+
+                def _idx(nombre_pref, opciones):
+                    return opciones.index(nombre_pref) if nombre_pref in opciones else 0
+
                 st.markdown("**Mapeo de variables** (según diccionario GEIH):")
                 col_salario = st.selectbox("Ingreso laboral (ej. INGLABO / P6500)", cols,
-                                            index=cols.index("P6500") if "P6500" in cols else 0)
+                                            index=_idx("P6500", cols))
                 col_horas = st.selectbox("Horas trabajadas (ej. P6800)", cols,
-                                          index=cols.index("P6800") if "P6800" in cols else 0)
+                                          index=_idx("P6800", cols))
                 col_educ = st.selectbox("Años de educación (ej. P3042 / P6210)", cols,
-                                         index=cols.index("P3042") if "P3042" in cols else 0)
+                                         index=_idx("P3042", cols))
                 col_edad = st.selectbox("Edad (ej. P6040)", cols,
-                                         index=cols.index("P6040") if "P6040" in cols else 0)
+                                         index=_idx("P6040", cols))
                 col_sexo = st.selectbox("Sexo (ej. P6020: 1=Hombre, 2=Mujer)", cols,
-                                         index=cols.index("P6020") if "P6020" in cols else 0)
+                                         index=_idx("P6020", cols))
 
                 df, n_eliminados = preparar_datos_mincer(
                     df_merged, usar_reales=True, col_salario=col_salario, col_horas=col_horas,
                     col_educ=col_educ, col_edad=col_edad, col_sexo=col_sexo,
                 )
+                if len(df) == 0:
+                    st.error("Tras la limpieza no quedaron observaciones válidas. Revisa el "
+                              "mapeo de columnas (ingreso, horas, educación, edad, sexo).")
+                    st.stop()
             except Exception as e:
                 st.error(f"Error al procesar los datos: {e}")
                 st.stop()
