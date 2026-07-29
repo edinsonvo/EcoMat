@@ -160,7 +160,7 @@ def generar_datos_sinteticos(n=8000, semilla=2024, beta_educ=0.095, beta_exp=0.0
     df = pd.DataFrame({
         "DIRECTORIO": np.arange(1, N + 1),
         "P6040": edad,
-        "P6020": sexo,
+        "P3271": sexo,
         "P3042": educacion,
         "AREA": zona,
         "P6500": salario_hora,
