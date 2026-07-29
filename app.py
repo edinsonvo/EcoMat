@@ -44,15 +44,28 @@ CUSTOM_CSS = f"""
         border-radius: 12px;
         color: white;
         margin-bottom: 1.2rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1.5rem;
     }}
-    .main-header h1 {{
+    .main-header .header-texto h1 {{
         margin: 0;
         font-size: 1.7rem;
     }}
-    .main-header p {{
+    .main-header .header-texto p {{
         margin: 0.2rem 0 0 0;
         opacity: 0.9;
         font-size: 0.95rem;
+    }}
+    .main-header .header-logo img {{
+        max-height: 72px;
+        max-width: 180px;
+        object-fit: contain;
+        background: white;
+        border-radius: 8px;
+        padding: 6px 10px;
+        flex-shrink: 0;
     }}
     .interp-box, .interp-box * {{
         background: #e8f4fd;
@@ -101,9 +114,35 @@ CUSTOM_CSS = f"""
 </style>
 """
 st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
+ 
+ 
+def _cargar_logo_base64():
+    """Busca un archivo de logo institucional junto a app.py y lo devuelve como
+    data-URI en base64. Coloca tu archivo con alguno de estos nombres para que
+    aparezca automáticamente en el encabezado."""
+    import base64
+    from pathlib import Path
+ 
+    directorio = Path(__file__).parent
+    candidatos = [
+        "logo_unal.png", "logo_unal.jpg", "logo_unal.svg",
+        "logo_universidad.png", "logo.png", "logo.jpg", "logo.svg",
+    ]
+    for nombre in candidatos:
+        ruta = directorio / nombre
+        if ruta.exists():
+            datos = base64.b64encode(ruta.read_bytes()).decode()
+            ext = ruta.suffix.lstrip(".").lower()
+            mime = "svg+xml" if ext == "svg" else ext
+            return f"data:image/{mime};base64,{datos}"
+    return None
+ 
+ 
+LOGO_URI = _cargar_logo_base64()
+LOGO_HTML = f'<div class="header-logo"><img src="{LOGO_URI}" alt="Logo institucional"></div>' if LOGO_URI else ""
 
 st.markdown(
-    """
+    f"""
     <div class="main-header">
         <h1>📊 Modelo de Salarios de Mincer — Microdatos GEIH</h1>
         <p>Taller 2 · Economía Matemática Aplicada</p>
