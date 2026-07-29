@@ -117,9 +117,6 @@ st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
  
  
 def _cargar_logo_base64():
-    """Busca un archivo de logo institucional junto a app.py y lo devuelve como
-    data-URI en base64. Coloca tu archivo con alguno de estos nombres para que
-    aparezca automáticamente en el encabezado."""
     import base64
     from pathlib import Path
  
